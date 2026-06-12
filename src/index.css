@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background-color: #f7f9fb;
+  color: #191c1e;
+  font-family: var(--font-sans);
+}
+
+/* Custom styles for range slider to match mockup specifications */
+input[type="range"].custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].custom-slider:focus {
+  outline: none;
+}
+
+input[type="range"].custom-slider::-webkit-slider-runnable-track {
+  background: #e2e8f0; /* slate-200 */
+  border-radius: 9999px;
+  height: 8px;
+}
+
+input[type="range"].custom-slider::-moz-range-track {
+  background: #e2e8f0;
+  border-radius: 9999px;
+  height: 8px;
+}
+
+input[type="range"].custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -8px; /* middle the thumb on track */
+  background-color: #0f172a; /* Slate 900 */
+  border-radius: 50%;
+  height: 24px;
+  width: 24px;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].custom-slider::-moz-range-thumb {
+  border: none;
+  background-color: #0f172a;
+  border-radius: 50%;
+  height: 24px;
+  width: 24px;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].custom-slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+/* Scrollbar styles to match pristine design aesthetics */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
