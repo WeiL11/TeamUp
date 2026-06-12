@@ -35,17 +35,35 @@ import CreateSessionModal from './components/CreateSessionModal';
 
 export default function App() {
   // State for session settings
-  const [session, setSession] = useState<Session>({
-    gameName: 'Basketball at Rec Center',
-    gameDetail: 'Court 3, 5:00 PM (Winner stay 1)',
-    teamSize: 5
+  const [session, setSession] = useState<Session>(() => {
+    const saved = localStorage.getItem('teamup_session');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return {
+      gameName: 'Basketball at Rec Center',
+      gameDetail: 'Court 3, 5:00 PM (Winner stay 1)',
+      teamSize: 5
+    };
   });
 
   // State for roster queue list of Teams
-  const [teams, setTeams] = useState<Team[]>(defaultTeams);
+  const [teams, setTeams] = useState<Team[]>(() => {
+    const saved = localStorage.getItem('teamup_teams');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return defaultTeams;
+  });
 
   // State for recording and preserving Today's Game History
-  const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
+  const [gameHistory, setGameHistory] = useState<GameRecord[]>(() => {
+    const saved = localStorage.getItem('teamup_game_history');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [];
+  });
 
   // Toggle layout between matches played list and player/squad win rates leaderboard
   const [historyView, setHistoryView] = useState<'matches' | 'leaderboard' | 'roster'>('matches');
@@ -89,41 +107,35 @@ export default function App() {
   }, []);
 
   // State for active courts count (2 teams per court)
-  const [courtCount, setCourtCount] = useState<number>(1);
+  const [courtCount, setCourtCount] = useState<number>(() => {
+    const saved = localStorage.getItem('teamup_court_count');
+    if (saved) {
+      try {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      } catch (e) {}
+    }
+    return 1;
+  });
 
-  // Fetch initial data from backend
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  // Persist edits to localStorage
+  useEffect(() => {
+    localStorage.setItem('teamup_session', JSON.stringify(session));
+  }, [session]);
 
   useEffect(() => {
-    fetch('/api/data')
-      .then(res => res.json())
-      .then(data => {
-        if (data.session) setSession(data.session);
-        if (data.teams) setTeams(data.teams);
-        if (data.gameHistory) setGameHistory(data.gameHistory);
-        if (data.courtCount) setCourtCount(data.courtCount);
-        setIsDataLoaded(true);
-      })
-      .catch(err => console.error('Failed to load data from backend:', err));
-  }, []);
+    localStorage.setItem('teamup_teams', JSON.stringify(teams));
+  }, [teams]);
 
-  // Persist edits to backend
   useEffect(() => {
-    if (!isDataLoaded) return;
-    
-    fetch('/api/data', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        session,
-        teams,
-        gameHistory,
-        courtCount
-      })
-    }).catch(err => console.error('Failed to save data to backend:', err));
-  }, [session, teams, gameHistory, courtCount, isDataLoaded]);
+    localStorage.setItem('teamup_game_history', JSON.stringify(gameHistory));
+  }, [gameHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('teamup_court_count', String(courtCount));
+  }, [courtCount]);
+
+
 
   // Synchronously repack all players into teams of the new size whenever standard team size changes
   useEffect(() => {
