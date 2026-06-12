@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# TeamUp: Rec Center Basketball Queue
 
-# Run and deploy your AI Studio app
+## 🏀 The Why
+Tired of the chaos and arguments over "who's got next" at the Rec Center? I built TeamUp to completely eliminate the confusion. It's a fun, transparent, and fair way to easily queue plays, organize squads, and definitively keep track of who is running the court! No more forgetting whose turn it is.
 
-This contains everything you need to run your app locally.
+## 🚀 How to Use
+**Access the live app here:** 👉 [https://weil11.github.io/TeamUp/](https://weil11.github.io/TeamUp/)
 
-View your app in AI Studio: https://ai.studio/apps/6e3041ec-9049-4b9d-83c6-b55a7e071018
+⚠️ **Important Note:** This application runs entirely in your browser. All of your queue data, teams, and match history are saved directly to your device. **Do not close the browser tab or clear your browser history** during your session, or you will lose the queue! (Refreshing the page is perfectly fine and will remember your data).
 
-## Run Locally
+![How to Use Example](./Example.png)
 
-**Prerequisites:**  Node.js
+## ⚙️ The System
+TeamUp is a fast, responsive Single Page Application (SPA) built with **React**, **Vite**, and **TailwindCSS**. 
 
+- **Smart Queuing:** Players can join individually or as a pre-formed squad. The app automatically groups individuals into standard-sized teams.
+- **Dynamic Courts:** Need more space? Easily increase or decrease the number of active courts. The system automatically pulls waiting teams "On Deck" and onto the active courts when a game ends.
+- **Match History & Stats:** Records every completed game to compute an automatic leaderboard, tracking individual player win rates and total matches played.
+- **Architecture:** Hosted 100% statically on GitHub Pages. Data persistence is handled purely via browser `localStorage` to keep the app lightning fast and free to host.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🏗️ How to Build This in 2 Hours
+This project is an experiment in rapid prototyping using modern AI-assisted development tools:
+1. **UI Design:** Used **Stitch** to craft the initial dynamic, glassmorphic user interface.
+2. **Frontend Testing:** Leveraged **Google AI Studio** to rapidly test, iterate, and refine the React component logic.
+3. **Backend & DevOps:** Utilized **Claude** and **Gemini** to structure the project, manage state persistence, and fully automate the GitHub Actions CI/CD deployment pipeline.
