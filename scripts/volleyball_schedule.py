@@ -54,11 +54,20 @@ TIME_PATTERN = re.compile(
     r'(?:\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))?'
 )
 
+HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/124.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+}
+
 
 def find_pdf_url(slug):
     page_url = f"{BASE_URL}/{slug}"
     try:
-        resp = requests.get(page_url, timeout=30)
+        resp = requests.get(page_url, headers=HEADERS, timeout=30)
         resp.raise_for_status()
     except Exception as e:
         return None, f"Page error: {e}"
@@ -78,7 +87,7 @@ def find_pdf_url(slug):
 
 def download_pdf(url, path):
     try:
-        resp = requests.get(url, timeout=60)
+        resp = requests.get(url, headers=HEADERS, timeout=60)
         resp.raise_for_status()
         with open(path, 'wb') as f:
             f.write(resp.content)
