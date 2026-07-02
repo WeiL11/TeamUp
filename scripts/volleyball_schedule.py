@@ -9,18 +9,18 @@ import re
 import subprocess
 import pdfplumber
 from datetime import datetime
-from html.parser import HTMLParser
-from urllib.parse import urljoin
 
 PAGE_URL = "https://www.nashville.gov/departments/parks/community-centers-and-recreation"
 BASE_URL = "https://www.nashville.gov"
 CURL_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36"
 
-# Map keywords in PDF filename → center name
+# ORDER MATTERS: more specific keywords must come before substrings they contain
+# e.g. "southeast" before "east", "eastsummer" before "east", "ridgesummer" before nothing
 CENTER_MAP = [
     ("bellevue",    "Bellevue",      "Regional"),
     ("coleman",     "Coleman",       "Regional"),
     ("eastsummer",  "East Park",     "Regional"),
+    ("southeast",   "Southeast",     "Regional"),
     ("east",        "East Park",     "Regional"),
     ("hadley",      "Hadley",        "Regional"),
     ("hartman",     "Hartman",       "Regional"),
@@ -29,21 +29,20 @@ CENTER_MAP = [
     ("hickory",     "Old Hickory",   "Regional"),
     ("sevier",      "Sevier",        "Regional"),
     ("smith",       "Smith Springs", "Regional"),
-    ("southeast",   "Southeast",     "Regional"),
     ("antioch",     "Antioch",       "Neighborhood"),
     ("cleveland",   "Cleveland",     "Neighborhood"),
     ("easley",      "Easley",        "Neighborhood"),
     ("elizabeth",   "Elizabeth",     "Neighborhood"),
-    ("hermitage",   "Hermitage",     "Neighborhood"),
     ("hfall",       "Hermitage",     "Neighborhood"),
     ("hspring",     "Hermitage",     "Neighborhood"),
+    ("hermitage",   "Hermitage",     "Neighborhood"),
     ("kirkpatrick", "Kirkpatrick",   "Neighborhood"),
     ("looby",       "Looby",         "Neighborhood"),
     ("mcf",         "McFerrin",      "Neighborhood"),
     ("morgan",      "Morgan",        "Neighborhood"),
     ("napier",      "Napier",        "Neighborhood"),
-    ("paradise",    "Paradise Ridge","Neighborhood"),
     ("ridgesummer", "Paradise Ridge","Neighborhood"),
+    ("paradise",    "Paradise Ridge","Neighborhood"),
     ("parkwood",    "Parkwood",      "Neighborhood"),
     ("shelby",      "Shelby",        "Neighborhood"),
 ]
@@ -86,40 +85,105 @@ def match_center(filename):
     return None, None
 
 
-def extract_volleyball(pdf_path):
-    hits = []
-    try:
-        with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                # Table rows
-                for table in page.extract_tables():
-                    for row in table:
-                        row_text = " | ".join(str(c) for c in row if c)
-                        if "volleyball" in row_text.lower():
-                            hits.append(row_text.strip())
-                # Plain text
-                text = page.extract_text() or ""
-                lines = text.split("\n")
-                for i, line in enumerate(lines):
-                    if "volleyball" in line.lower():
-                        ctx = " ".join(
-                            l.strip() for l in lines[max(0, i-1):i+2] if l.strip()
-                        )
-                        hits.append(ctx)
-    except Exception as e:
-        return [], str(e)
-    return list(dict.fromkeys(hits)), None
-
-
-def parse_day_time(text):
+def parse_days(text):
     days = []
     for m in DAY_PATTERN.finditer(text):
         w = m.group(1)
         norm = DAY_NORM.get(w.lower(), w.capitalize())
         if norm not in days:
             days.append(norm)
-    times = TIME_PATTERN.findall(text)
-    return days, times
+    return days
+
+
+def parse_times(text):
+    return TIME_PATTERN.findall(text)
+
+
+def extract_volleyball_from_table(table):
+    """
+    Find volleyball in table cells, then resolve day from column header and
+    time from the row's first cell or the volleyball cell itself.
+    """
+    entries = []
+    if not table or len(table) < 1:
+        return entries
+
+    for row_idx, row in enumerate(table):
+        for col_idx, cell in enumerate(row):
+            if not cell or "volleyball" not in str(cell).lower():
+                continue
+
+            cell_str = str(cell).strip()
+            days = []
+            times = []
+
+            # Try column header (row 0) for day
+            if row_idx > 0 and table[0] and col_idx < len(table[0]) and table[0][col_idx]:
+                days = parse_days(str(table[0][col_idx]))
+
+            # Try row's first cell for time or day
+            if row[0]:
+                first = str(row[0])
+                t = parse_times(first)
+                if t:
+                    times.extend(t)
+                if not days:
+                    days = parse_days(first)
+
+            # Try within the volleyball cell itself
+            t_in_cell = parse_times(cell_str)
+            times.extend(t_in_cell)
+            if not days:
+                days = parse_days(cell_str)
+
+            # Last resort: scan the whole row
+            if not days or not times:
+                row_text = " ".join(str(c) for c in row if c)
+                if not days:
+                    days = parse_days(row_text)
+                if not times:
+                    times = parse_times(row_text)
+
+            times = list(dict.fromkeys(times))
+            entries.append({"text": cell_str, "days": days, "times": times})
+
+    return entries
+
+
+def extract_volleyball_from_text(text):
+    """
+    Only extract from the exact line containing 'volleyball' — never grab
+    surrounding context lines, which would pull in unrelated activities' times.
+    """
+    entries = []
+    for line in text.split("\n"):
+        if "volleyball" in line.lower():
+            days = parse_days(line)
+            times = parse_times(line)
+            entries.append({"text": line.strip(), "days": days, "times": times})
+    return entries
+
+
+def extract_volleyball(pdf_path):
+    hits = []
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                for table in page.extract_tables():
+                    hits.extend(extract_volleyball_from_table(table))
+                text = page.extract_text() or ""
+                hits.extend(extract_volleyball_from_text(text))
+    except Exception as e:
+        return [], str(e)
+
+    # Deduplicate by text
+    seen = set()
+    unique = []
+    for h in hits:
+        if h["text"] not in seen:
+            seen.add(h["text"])
+            unique.append(h)
+    return unique, None
 
 
 def generate_markdown(results):
@@ -174,7 +238,6 @@ def generate_markdown(results):
 def main():
     print(f"Nashville Volleyball Schedule Scraper — {datetime.now().strftime('%Y-%m-%d')}\n")
 
-    # Step 1+2: Fetch main page and extract PDF links
     print(f"Fetching: {PAGE_URL}")
     status, rc = curl_get(PAGE_URL, "/tmp/centers_page.html")
     print(f"HTTP {status}")
@@ -190,7 +253,6 @@ def main():
 
     results_by_name = {}
 
-    # Steps 3-5: Download each PDF and search for volleyball
     for path in pdf_paths:
         name, ctype = match_center(path)
         if not name:
@@ -221,13 +283,10 @@ def main():
             results_by_name[name] = {"name": name, "type": ctype, "status": "沒讀",
                                       "reason": err, "volleyball": []}
         elif hits:
-            parsed = []
             for h in hits:
-                days, times = parse_day_time(h)
-                parsed.append({"text": h, "days": days, "times": times})
-                print(f"  ✓ {h[:100]}")
+                print(f"  ✓ {h['text'][:100]}  days={h['days']} times={h['times']}")
             results_by_name[name] = {"name": name, "type": ctype, "status": "有",
-                                      "volleyball": parsed}
+                                      "volleyball": hits}
         else:
             print(f"  — No volleyball")
             results_by_name[name] = {"name": name, "type": ctype, "status": "沒有",
